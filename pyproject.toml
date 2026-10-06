@@ -1,0 +1,18 @@
+[project]
+name = "latera"
+version = "0.1.0"
+description = "Web app for storing and sorting text notes and files"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.142.2",
+    "pydantic>=2.13.5",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.10",
+]
+
+[tool.fastapi]
+entrypoint = "backend.api.main:app"
