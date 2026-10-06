@@ -1,32 +1,22 @@
-from fastapi import FastAPI, status, HTTPException
-from schemas.item import ItemCreate, ItemResponse
+from fastapi import FastAPI, status, HTTPException, Response
+from backend.api.schemas.item import ItemCreate, ItemResponse
 from datetime import datetime
 from itertools import count
 
 id_generator = count(start=0)
 
-items = [
-    {
-        "id": 0,
-        "content": "some pretty text"
-    },
-    {
-        "id": 1,
-        "title": "i'm a title",
-        "content": "i'll be a jpg file someday!"
-    }
-]
+items = []
 
-app = FastAPI()
+app = FastAPI(title="Latera")
 
-@app.get("/items", status_code=status.HTTP_200_OK, response_model=[ItemResponse])
+@app.get("/items", status_code=status.HTTP_200_OK, response_model=list[ItemResponse])
 def get_items():
     return items
 
 @app.get("/items/{item_id}", status_code=status.HTTP_200_OK, response_model=ItemResponse)
 def get_item(item_id: int):
     for json_item in items:
-        if json_item["id"] == item_id:
+        if json_item["item_id"] == item_id:
             return ItemResponse(**items[item_id])
     
     raise HTTPException(
@@ -64,7 +54,7 @@ def update_item(item_id: int, new_item: ItemCreate):
         )
     
     for json_item in items:
-        if json_item["id"] == item_id:
+        if json_item["item_id"] == item_id:
             json_item["title"] = new_item.title
             json_item["content"] = new_item.content
             json_item["modified_at"] = datetime.now()
@@ -74,8 +64,10 @@ def update_item(item_id: int, new_item: ItemCreate):
 @app.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(item_id: int):
     for i, json_item in enumerate(items):
-        if json_item["id"] == item_id:
+        if json_item["item_id"] == item_id:
             items.pop(i)
+
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
