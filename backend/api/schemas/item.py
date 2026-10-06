@@ -6,6 +6,12 @@ class ItemCreate(BaseModel):
     title: str | None = None
     content: str
 
+
+class ItemUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+
+
 class ItemResponse(ItemCreate):
     item_id: int
     created_at: datetime
