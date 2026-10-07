@@ -26,12 +26,6 @@ def get_item(item_id: int):
 
 @app.post("/items", status_code=status.HTTP_201_CREATED, response_model=ItemResponse)
 def create_item(item: ItemCreate):
-    if not item.content or item.content.isspace():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="content field must not be empty"
-        )
-
     new_id = next(id_generator)
 
     items[new_id] = {
@@ -61,14 +55,6 @@ def update_item(item_id: int, new_item: ItemUpdate):
         return ItemResponse(item_id=item_id, **old_item)
 
     if "content" in update_data and old_item["content"] != new_item.content:
-        if (new_item.content is None) or (
-            new_item.content is not None and (not new_item.content or new_item.content.isspace())
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="content field must not be empty"
-            )
-        
         old_item["content"] = new_item.content
         modified = True
 
