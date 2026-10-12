@@ -6,7 +6,7 @@ from datetime import datetime
 def is_valid_string(text: str | None) -> str:
     if not text or text.isspace():
         raise ValueError("content must not be empty")
-    return text
+    return text.strip()
 
 
 class ItemCreate(BaseModel):
