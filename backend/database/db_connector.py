@@ -1,74 +1,60 @@
-from backend.api.schemas.item import ItemResponse, ItemCreate, ItemUpdate
-from fastapi import status, HTTPException, Response
-from itertools import count
-from datetime import datetime, timezone
+from backend.api.schemas.item import ItemCreate, ItemUpdate
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from backend.database.models.item import Item
 
 
 class DBConnector:
 
-    id_generator = count(start=0)
-    storage = {}
+    def get_items(self, session: Session) -> list[Item]:
+        stmt = select(Item).order_by(Item.item_id)
+        result = session.scalars(statement=stmt).all()
 
-    def select_items(self) -> list[ItemResponse]:
-        return [ItemResponse(item_id=k, **v) for k, v in self.storage.items()]
+        return list(result)
 
-    def select_item(self, item_id: int) -> ItemResponse:
-        if item_id not in self.storage:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="no item with such id"
-            )
 
-        return ItemResponse(item_id=item_id, **self.storage[item_id])
+    def get_item(self, item_id: int, session: Session) -> Item | None:
+        return session.get(Item, item_id)
 
-    def add_item(self, item: ItemCreate) -> ItemResponse:
-        new_id = next(self.id_generator)
+    def post_item(self, item: ItemCreate, session: Session) -> Item:
+        new_item = Item(**item.model_dump())
 
-        self.storage[new_id] = {
-            "title": item.title,
-            "content": item.content,
-            "created_at": datetime.now(timezone.utc),
-            "modified_at": None
-        }
+        session.add(new_item)
+        session.commit()
 
-        new_item = ItemResponse(item_id=new_id, **self.storage[new_id])
+        session.refresh(new_item)
 
         return new_item
 
-    def update_item(self, item_id: int, new_item: ItemUpdate) -> ItemResponse:
-        if item_id not in self.storage:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="no item with such id"
-            )
+    def patch_item(self, item_id: int, new_item: ItemUpdate, session: Session) -> Item | None:
+        db_item = session.get(Item, item_id)
 
-        update_data = new_item.model_dump(exclude_unset=True)
-        old_item = self.storage[item_id]
-        modified = False
-
-        if not update_data:
-            return ItemResponse(item_id=item_id, **old_item)
-
-        if "content" in update_data and old_item["content"] != new_item.content:
-            old_item["content"] = new_item.content
-            modified = True
-
-        if "title" in update_data and old_item["title"] != new_item.title:
-            old_item["title"] = new_item.title
-            modified = True
-
-        if modified:    
-            old_item["modified_at"] = datetime.now(timezone.utc)
+        if db_item is None:
+            return None
         
-        return ItemResponse(item_id=item_id, **old_item)
+        update_data = new_item.model_dump(exclude_unset=True)
+        
+        if not update_data:
+            return db_item
 
-    def delete_item(self, item_id: int) -> Response:
-        if item_id not in self.storage:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="no item with such id"
-            )
+        if "content" in update_data and new_item.content is not None:
+            db_item.content = new_item.content
 
-        self.storage.pop(item_id)
+        if "title" in update_data:
+            db_item.title = new_item.title
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        session.commit()
+        session.refresh(db_item)
+
+        return db_item
+
+    def delete_item(self, item_id: int, session: Session) -> bool:
+        item = session.get(Item, item_id)
+
+        if item is None:
+            return False
+
+        session.delete(item)
+        session.commit()
+
+        return True

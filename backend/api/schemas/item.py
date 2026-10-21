@@ -1,5 +1,5 @@
 from typing import Annotated
-from pydantic import BaseModel, AfterValidator
+from pydantic import BaseModel, AfterValidator, ConfigDict
 from datetime import datetime
 
 
@@ -20,6 +20,8 @@ class ItemUpdate(BaseModel):
 
 
 class ItemResponse(ItemCreate):
+    model_config = ConfigDict(from_attributes=True)
+    
     item_id: int
     created_at: datetime
     modified_at: datetime | None = None
