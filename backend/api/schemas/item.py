@@ -25,3 +25,4 @@ class ItemResponse(ItemCreate):
     item_id: int
     created_at: datetime
     modified_at: datetime | None = None
+    deleted_at: datetime | None = None

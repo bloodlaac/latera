@@ -15,6 +15,9 @@ class Item(Base):
         default=lambda: datetime.now(timezone.utc)
     )
     modified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        onupdate=lambda: datetime.now(timezone.utc)
+        default=None
     )

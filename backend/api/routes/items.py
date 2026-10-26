@@ -54,3 +54,15 @@ def delete_item(item_id: int, storage: StorageDep, session: SessionDep):
         )
 
     return
+
+@router.post("/{item_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+def restore_item(item_id: int, storage: StorageDep, session: SessionDep):
+    item = storage.restore_item(item_id, session)
+
+    if item is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="no item with such id"
+        )
+
+    return
