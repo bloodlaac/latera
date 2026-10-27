@@ -1,3 +1,4 @@
+import backend.database.models
 from fastapi import FastAPI
 from backend.api.routes import items
 from backend.api.schemas.item import ItemResponse

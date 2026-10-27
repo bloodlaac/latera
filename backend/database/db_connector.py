@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 class DBConnector:
 
     def get_items(self, session: Session) -> list[Item]:
-        stmt = select(Item).where(Item.deleted_at.is_(None)).order_by(Item.item_id)
+        stmt = select(Item).where(Item.deleted_at.is_(None)).order_by(Item.id)
         result = session.scalars(statement=stmt).all()
 
         return list(result)
