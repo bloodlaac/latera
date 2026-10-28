@@ -1,8 +1,9 @@
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status, Query
 from backend.api.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from fastapi import HTTPException
 from backend.dependencies import SessionDep, StorageDep
+from typing import Annotated
+from pydantic import Field
 
 
 router = APIRouter(
@@ -10,12 +11,16 @@ router = APIRouter(
     tags=["items"]
 )
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=list[ItemResponse])
-def get_items(storage: StorageDep, session: SessionDep):
-    return storage.get_items(session)
+@router.get("", response_model=list[ItemResponse])
+def get_items(
+    storage: StorageDep,
+    session: SessionDep,
+    tags: Annotated[list[Annotated[int, Field(gt=0)]] | None, Query()] = None
+):
+    return storage.get_items(session, tags)
 
 
-@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=ItemResponse)
+@router.get("/{id}", response_model=ItemResponse)
 def get_item(id: int, storage: StorageDep, session: SessionDep):    
     item = storage.get_item(id, session)
 
@@ -40,7 +45,7 @@ def create_item(item: ItemCreate, storage: StorageDep, session: SessionDep):
     return new_item
 
 
-@router.patch("/{id}", status_code=status.HTTP_200_OK, response_model=ItemResponse)
+@router.patch("/{id}", response_model=ItemResponse)
 def update_item(id: int, new_item: ItemUpdate, storage: StorageDep, session: SessionDep):
     try:
         item = storage.patch_item(id, new_item, session)

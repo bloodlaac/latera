@@ -10,8 +10,19 @@ from datetime import datetime, timezone
 
 class DBConnector:
 
-    def get_items(self, session: Session) -> list[Item]:
-        stmt = select(Item).where(Item.deleted_at.is_(None)).order_by(Item.id)
+    def get_items(self, session: Session, tags: list[int] | None) -> list[Item]:
+        if tags is None:
+            stmt = select(Item).where(Item.deleted_at.is_(None)).order_by(Item.id)
+        else:
+            stmt = (
+                select(Item)
+                .join(Item.tags)
+                .where(Tag.id.in_(tags))
+                .where(Item.deleted_at.is_(None))
+                .distinct()
+                .order_by(Item.id)
+            )
+                
         result = session.scalars(statement=stmt).all()
 
         return list(result)
