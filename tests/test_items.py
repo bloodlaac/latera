@@ -27,9 +27,10 @@ def new_client():
 
 def test_add_valid_item(new_mock_storage: Mock, new_client: TestClient):
     item_response = ItemResponse(
-        item_id=1,
+        id=1,
         title="i'm a title",
         content="item with a title",
+        tags=[],
         created_at=datetime(2026, 10, 9, 19, 30, 30),
         modified_at=None
     )
@@ -43,7 +44,7 @@ def test_add_valid_item(new_mock_storage: Mock, new_client: TestClient):
     
     add_response_json = add_response.json()
 
-    assert add_response_json["item_id"] == 1
+    assert add_response_json["id"] == 1
     assert add_response_json["title"] == "i'm a title"
     assert add_response_json["content"] == "item with a title"
     assert add_response_json["created_at"] == "2026-10-09T19:30:30"
@@ -69,9 +70,10 @@ def test_create_item_validation(
     new_client: TestClient,
 ):
     item_response = ItemResponse(
-        item_id=1,
+        id=1,
         title="i'm a title",
         content="item with a title",
+        tags=[],
         created_at=datetime(2026, 10, 9, 19, 30, 30),
         modified_at=None
     )
@@ -100,17 +102,19 @@ def test_select_empty_items(new_mock_storage: Mock, new_client: TestClient):
 
 def test_select_non_empty_items(new_mock_storage: Mock, new_client: TestClient):
     first_item = ItemResponse(
-        item_id=0,
+        id=0,
         title="first",
         content="first item",
+        tags=[],
         created_at=datetime(2026, 10, 12, 11, 30, 30),
         modified_at=None
     )
 
     second_item = ItemResponse(
-        item_id=1,
+        id=1,
         title="second",
         content="second item",
+        tags=[],
         created_at=datetime(2026, 10, 12, 11, 35, 30),
         modified_at=None
     )
@@ -128,70 +132,72 @@ def test_select_non_empty_items(new_mock_storage: Mock, new_client: TestClient):
 
 
 def test_select_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 0
+    id = 0
     item_response = ItemResponse(
-        item_id=item_id,
+        id=id,
         title="first",
         content="first item",
+        tags=[],
         created_at=datetime(2026, 10, 12, 11, 55, 30),
         modified_at=None
     )
 
     new_mock_storage.select_item.return_value = item_response
-    response = new_client.get(f"/items/{item_id}")
+    response = new_client.get(f"/items/{id}")
 
     assert response.status_code == 200
     assert response.json() == item_response.model_dump(mode="json")
-    new_mock_storage.select_item.assert_called_once_with(item_id)
+    new_mock_storage.select_item.assert_called_once_with(id)
 
 
 def test_select_non_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 1
+    id = 1
 
     new_mock_storage.select_item.side_effect = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="no item with such id"
     )
 
-    response = new_client.get(f"/items/{item_id}")
+    response = new_client.get(f"/items/{id}")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "no item with such id"
-    new_mock_storage.select_item.assert_called_once_with(item_id)
+    new_mock_storage.select_item.assert_called_once_with(id)
 
 
 def test_patch_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 0
+    id = 0
     expected_item = ItemResponse(
-        item_id=item_id,
+        id=id,
         title="new title",
         content="item with title",
+        tags=[],
         created_at=datetime(2026, 10, 12, 12, 00, 00),
         modified_at=datetime(2026, 10, 12, 12, 20, 00)
     )
     new_mock_storage.update_item.return_value = expected_item
 
     updated_item = ItemUpdate(title="new title")
-    response = new_client.patch(f"/items/{item_id}", json=updated_item.model_dump(mode="json", exclude_unset=True))
+    response = new_client.patch(f"/items/{id}", json=updated_item.model_dump(mode="json", exclude_unset=True))
 
     assert response.status_code == 200
     assert response.json() == expected_item.model_dump(mode="json")
-    new_mock_storage.update_item.assert_called_once_with(item_id, updated_item)
+    new_mock_storage.update_item.assert_called_once_with(id, updated_item)
 
 
 def test_patch_non_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 1
+    id = 1
     new_mock_storage.update_item.side_effect = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="no item with such id"
     )
 
     updated_item = ItemUpdate(title="new title")
-    response = new_client.patch(f"/items/{item_id}", json=updated_item.model_dump(mode="json", exclude_unset=True))
+    response = new_client.patch(f"/items/{id}", json=updated_item.model_dump(mode="json", exclude_unset=True))
 
     assert response.status_code == 404
     assert response.json()["detail"] == "no item with such id"
-    new_mock_storage.update_item.assert_called_once_with(item_id, updated_item)
+    new_mock_storage.update_item.assert_called_once_with(id, updated_item)
 
 
 @pytest.mark.parametrize(
@@ -202,32 +208,32 @@ def test_patch_non_existing_item(new_mock_storage: Mock, new_client: TestClient)
     ]
 )
 def test_update_item_validation(payload, new_mock_storage, new_client):
-    item_id = 1
-    response = new_client.patch(f"/items/{item_id}", json=payload)
+    id = 1
+    response = new_client.patch(f"/items/{id}", json=payload)
     
     assert response.status_code == 422
     new_mock_storage.update_item.assert_not_called()
 
 
 def test_delete_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 0
+    id = 0
     new_mock_storage.delete_item.return_value = None
-    response = new_client.delete(f"/items/{item_id}")
+    response = new_client.delete(f"/items/{id}")
 
     assert response.status_code == 204
     assert response.content == b""
-    new_mock_storage.delete_item.assert_called_once_with(item_id)
+    new_mock_storage.delete_item.assert_called_once_with(id)
 
 
 def test_delete_non_existing_item(new_mock_storage: Mock, new_client: TestClient):
-    item_id = 1
+    id = 1
     new_mock_storage.delete_item.side_effect = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="no item with such id"
     )
 
-    response = new_client.delete(f"/items/{item_id}")
+    response = new_client.delete(f"/items/{id}")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "no item with such id"
-    new_mock_storage.delete_item.assert_called_once_with(item_id)
+    new_mock_storage.delete_item.assert_called_once_with(id)

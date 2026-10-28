@@ -1,8 +1,9 @@
-from fastapi import APIRouter
-from fastapi import status
+from fastapi import APIRouter, status, Query
 from backend.api.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from fastapi import HTTPException
 from backend.dependencies import SessionDep, StorageDep
+from typing import Annotated
+from pydantic import Field
 
 
 router = APIRouter(
@@ -10,14 +11,18 @@ router = APIRouter(
     tags=["items"]
 )
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=list[ItemResponse])
-def get_items(storage: StorageDep, session: SessionDep):
-    return storage.get_items(session)
+@router.get("", response_model=list[ItemResponse])
+def get_items(
+    storage: StorageDep,
+    session: SessionDep,
+    tags: Annotated[list[Annotated[int, Field(gt=0)]] | None, Query()] = None
+):
+    return storage.get_items(session, tags)
 
 
-@router.get("/{item_id}", status_code=status.HTTP_200_OK, response_model=ItemResponse)
-def get_item(item_id: int, storage: StorageDep, session: SessionDep):    
-    item = storage.get_item(item_id, session)
+@router.get("/{id}", response_model=ItemResponse)
+def get_item(id: int, storage: StorageDep, session: SessionDep):    
+    item = storage.get_item(id, session)
 
     if item is None:
         raise HTTPException(
@@ -29,12 +34,26 @@ def get_item(item_id: int, storage: StorageDep, session: SessionDep):
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ItemResponse)
 def create_item(item: ItemCreate, storage: StorageDep, session: SessionDep):
-    return storage.post_item(item, session)
+    try:
+        new_item = storage.post_item(item, session)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"no tag with id {e}, choose another"
+        )
+
+    return new_item
 
 
-@router.patch("/{item_id}", status_code=status.HTTP_200_OK, response_model=ItemResponse)
-def update_item(item_id: int, new_item: ItemUpdate, storage: StorageDep, session: SessionDep):
-    item = storage.patch_item(item_id, new_item, session)
+@router.patch("/{id}", response_model=ItemResponse)
+def update_item(id: int, new_item: ItemUpdate, storage: StorageDep, session: SessionDep):
+    try:
+        item = storage.patch_item(id, new_item, session)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"no tag with id {e}, choose another"
+        )
 
     if item is None:
         raise HTTPException(
@@ -45,9 +64,9 @@ def update_item(item_id: int, new_item: ItemUpdate, storage: StorageDep, session
     return item
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: int, storage: StorageDep, session: SessionDep):
-    if not storage.delete_item(item_id, session):
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_item(id: int, storage: StorageDep, session: SessionDep):
+    if not storage.delete_item(id, session):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="no item with such id"
@@ -55,9 +74,9 @@ def delete_item(item_id: int, storage: StorageDep, session: SessionDep):
 
     return
 
-@router.post("/{item_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
-def restore_item(item_id: int, storage: StorageDep, session: SessionDep):
-    item = storage.restore_item(item_id, session)
+@router.post("/{id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+def restore_item(id: int, storage: StorageDep, session: SessionDep):
+    item = storage.restore_item(id, session)
 
     if item is None:
         raise HTTPException(
