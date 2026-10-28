@@ -1,7 +1,10 @@
 from backend.api.schemas.item import ItemCreate, ItemUpdate
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from backend.database.models.item import Item
+from backend.database.models.tag import Tag
+from backend.api.schemas.tag import TagCreate
 from datetime import datetime, timezone
 
 
@@ -13,15 +16,27 @@ class DBConnector:
 
         return list(result)
 
-    def get_item(self, item_id: int, session: Session) -> Item | None:
-        item = session.get(Item, item_id)
+    def get_item(self, id: int, session: Session) -> Item | None:
+        item = session.get(Item, id)
 
         if item is None or item.deleted_at is not None:
             return None
         return item
 
     def post_item(self, item: ItemCreate, session: Session) -> Item:
-        new_item = Item(**item.model_dump())
+        item_data = item.model_dump(exclude={"tags"})
+        new_item = Item(**item_data)
+
+        db_tags = []
+                    
+        for tag_id in item.tags:
+            db_tag = session.get(Tag, tag_id)
+
+            if db_tag is None:
+                raise ValueError(tag_id)
+            db_tags.append(db_tag)
+
+        new_item.tags = db_tags
 
         session.add(new_item)
         session.commit()
@@ -30,10 +45,10 @@ class DBConnector:
 
         return new_item
 
-    def patch_item(self, item_id: int, new_item: ItemUpdate, session: Session) -> Item | None:
+    def patch_item(self, id: int, new_item: ItemUpdate, session: Session) -> Item | None:
         modified = False
         
-        db_item = session.get(Item, item_id)
+        db_item = session.get(Item, id)
 
         if db_item is None or db_item.deleted_at is not None:
             return None
@@ -42,6 +57,26 @@ class DBConnector:
         
         if not update_data:
             return db_item
+
+        if "tags" in update_data:
+            db_tags_ids = []
+            
+            for tag in db_item.tags:
+                db_tags_ids.append(tag.id)
+
+            if set(db_tags_ids) != set(update_data["tags"]):
+                new_tags = update_data["tags"]
+                db_tags = []
+
+                for tag_id in new_tags:
+                    db_tag = session.get(Tag, tag_id)
+
+                    if db_tag is None:
+                        raise ValueError(tag_id)
+                    db_tags.append(db_tag)
+
+                db_item.tags = db_tags
+                modified = True
 
         if (
             "content" in update_data
@@ -62,8 +97,8 @@ class DBConnector:
 
         return db_item
 
-    def delete_item(self, item_id: int, session: Session) -> bool:
-        item = session.get(Item, item_id)
+    def delete_item(self, id: int, session: Session) -> bool:
+        item = session.get(Item, id)
 
         if item is None:
             return False
@@ -82,8 +117,8 @@ class DBConnector:
 
         return list(items)
 
-    def restore_item(self, item_id: int, session: Session) -> Item | None:
-        item = session.get(Item, item_id)
+    def restore_item(self, id: int, session: Session) -> Item | None:
+        item = session.get(Item, id)
 
         if item is None:
             return None
@@ -93,3 +128,44 @@ class DBConnector:
             session.commit()
 
         return item
+
+
+    def get_tags(self, session: Session) -> list[Tag]:
+        stmt = select(Tag).order_by(Tag.id)
+
+        tags = session.scalars(statement=stmt).all()
+
+        return list(tags)
+
+
+    def get_tag(self, session: Session, id: int) -> Tag | None:
+        tag = session.get(Tag, id)
+
+        return tag
+
+
+    def post_tag(self, session: Session, tag: TagCreate) -> Tag:
+        new_tag = Tag(**tag.model_dump())
+
+        try:
+            session.add(new_tag)
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            raise ValueError(tag.name)
+        
+        session.refresh(new_tag)
+
+        return new_tag
+
+
+    def delete_tag(self, session: Session, id: int) -> bool:
+        tag = session.get(Tag, id)
+
+        if tag is None:
+            return False
+
+        session.delete(tag)
+        session.commit()
+
+        return True
