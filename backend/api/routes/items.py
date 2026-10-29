@@ -15,9 +15,11 @@ router = APIRouter(
 def get_items(
     storage: StorageDep,
     session: SessionDep,
-    tags: Annotated[list[Annotated[int, Field(gt=0)]] | None, Query()] = None
+    tags: Annotated[list[Annotated[int, Field(gt=0)]] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    return storage.get_items(session, tags)
+    return storage.get_items(session, tags, limit, offset)
 
 
 @router.get("/{id}", response_model=ItemResponse)
