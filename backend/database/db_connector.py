@@ -10,17 +10,27 @@ from datetime import datetime, timezone
 
 class DBConnector:
 
-    def get_items(self, session: Session, tags: list[int] | None) -> list[Item]:
-        if tags is None:
-            stmt = select(Item).where(Item.deleted_at.is_(None)).order_by(Item.id)
-        else:
+    def get_items(
+            self,
+            session: Session,
+            tags: list[int] | None,
+            limit: int,
+            offset: int,
+        ) -> list[Item]:
+
+        stmt = (
+            select(Item)
+            .where(Item.deleted_at.is_(None))
+            .order_by(Item.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        
+        if tags:
             stmt = (
-                select(Item)
-                .join(Item.tags)
+                stmt.join(Item.tags)
                 .where(Tag.id.in_(tags))
-                .where(Item.deleted_at.is_(None))
                 .distinct()
-                .order_by(Item.id)
             )
                 
         result = session.scalars(statement=stmt).all()
@@ -56,7 +66,13 @@ class DBConnector:
 
         return new_item
 
-    def patch_item(self, id: int, new_item: ItemUpdate, session: Session) -> Item | None:
+    def patch_item(
+            self,
+            id: int,
+            new_item: ItemUpdate,
+            session: Session
+        ) -> Item | None:
+        
         modified = False
         
         db_item = session.get(Item, id)
@@ -122,7 +138,12 @@ class DBConnector:
         return True
 
     def get_trash(self, session: Session) -> list[Item]:
-        stmt = select(Item).where(Item.deleted_at.is_not(None)).order_by(Item.deleted_at.desc())
+        stmt = (
+            select(Item)
+            .where(Item.deleted_at
+            .is_not(None))
+            .order_by(Item.deleted_at.desc())
+        )
 
         items = session.scalars(statement=stmt).all()
 
